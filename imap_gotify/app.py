@@ -4,6 +4,7 @@ import argparse
 import json
 import logging
 from logging.handlers import RotatingFileHandler
+import os
 from pathlib import Path
 import signal
 import sys
@@ -29,6 +30,16 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--web-enable", action="store_true", help="Run the web configuration UI alongside the watcher.")
     parser.add_argument("--web-host", default="127.0.0.1", help="Host for --web.")
     parser.add_argument("--web-port", type=int, default=8080, help="Port for --web.")
+    parser.add_argument(
+        "--web-username",
+        default=os.getenv("IMAP_WEBHOOK_WEB_USERNAME"),
+        help="Username for web UI basic auth. Defaults to admin when password is set.",
+    )
+    parser.add_argument(
+        "--web-password",
+        default=os.getenv("IMAP_WEBHOOK_WEB_PASSWORD"),
+        help="Password for web UI basic auth. If omitted, web auth is disabled.",
+    )
     parser.add_argument("--log-file", help="Path to persistent log file. Overrides config log_path.")
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable debug logging.")
     args = parser.parse_args(argv)
@@ -36,7 +47,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.web:
         log_path = Path(args.log_file) if args.log_file else Path("logs/imap-gotify.log")
         setup_logging(logging.DEBUG if args.verbose else logging.INFO, log_path)
-        serve_config_ui(args.config, args.web_host, args.web_port)
+        serve_config_ui(args.config, args.web_host, args.web_port, args.web_username, args.web_password)
         return 0
 
     config = load_config(args.config)
@@ -70,7 +81,13 @@ def main(argv: list[str] | None = None) -> int:
     web_server = None
 
     if args.web_enable:
-        web_server = start_config_ui_thread(args.config, args.web_host, args.web_port)
+        web_server = start_config_ui_thread(
+            args.config,
+            args.web_host,
+            args.web_port,
+            args.web_username,
+            args.web_password,
+        )
 
     def stop(_signum: int, _frame: object) -> None:
         logging.info("stopping")

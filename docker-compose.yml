@@ -3,6 +3,9 @@ services:
     image: w0ng22/imap-webhook:latest
     container_name: imap-webhook
     restart: unless-stopped
+    environment:
+      IMAP_WEBHOOK_WEB_USERNAME: ${IMAP_WEBHOOK_WEB_USERNAME:-admin}
+      IMAP_WEBHOOK_WEB_PASSWORD: ${IMAP_WEBHOOK_WEB_PASSWORD:?set IMAP_WEBHOOK_WEB_PASSWORD in .env}
     ports:
       - "127.0.0.1:8080:8080"
     volumes:

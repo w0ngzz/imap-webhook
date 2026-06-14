@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import base64
+import hmac
 import json
 import tempfile
 from dataclasses import asdict
@@ -16,17 +18,31 @@ from .login_test import test_logins
 from .webhook_test import send_test_webhook
 
 
-def create_config_ui_server(config_path: str | Path, host: str, port: int) -> ThreadingHTTPServer:
+def create_config_ui_server(
+    config_path: str | Path,
+    host: str,
+    port: int,
+    username: str | None = None,
+    password: str | None = None,
+) -> ThreadingHTTPServer:
     path = Path(config_path)
 
     class Handler(_ConfigHandler):
         config_path = path
+        auth_username = username
+        auth_password = password
 
     return ThreadingHTTPServer((host, port), Handler)
 
 
-def start_config_ui_thread(config_path: str | Path, host: str, port: int) -> ThreadingHTTPServer:
-    server = create_config_ui_server(config_path, host, port)
+def start_config_ui_thread(
+    config_path: str | Path,
+    host: str,
+    port: int,
+    username: str | None = None,
+    password: str | None = None,
+) -> ThreadingHTTPServer:
+    server = create_config_ui_server(config_path, host, port, username, password)
     thread = threading.Thread(
         target=server.serve_forever,
         name="config-web",
@@ -37,16 +53,27 @@ def start_config_ui_thread(config_path: str | Path, host: str, port: int) -> Thr
     return server
 
 
-def serve_config_ui(config_path: str | Path, host: str, port: int) -> None:
-    server = create_config_ui_server(config_path, host, port)
+def serve_config_ui(
+    config_path: str | Path,
+    host: str,
+    port: int,
+    username: str | None = None,
+    password: str | None = None,
+) -> None:
+    server = create_config_ui_server(config_path, host, port, username, password)
     print(f"imap-gotify config UI listening on http://{host}:{port}")
     server.serve_forever()
 
 
 class _ConfigHandler(BaseHTTPRequestHandler):
     config_path: Path
+    auth_username: str | None = None
+    auth_password: str | None = None
 
     def do_GET(self) -> None:
+        if not self._is_authorized():
+            self._request_auth()
+            return
         if self.path in {"/", "/index.html"}:
             self._send_html(_index_html())
             return
@@ -56,6 +83,9 @@ class _ConfigHandler(BaseHTTPRequestHandler):
         self.send_error(HTTPStatus.NOT_FOUND)
 
     def do_POST(self) -> None:
+        if not self._is_authorized():
+            self._request_auth()
+            return
         try:
             payload = self._read_json()
             if self.path == "/api/save":
@@ -81,6 +111,32 @@ class _ConfigHandler(BaseHTTPRequestHandler):
 
     def log_message(self, format: str, *args: object) -> None:
         print(f"{self.address_string()} - {format % args}")
+
+    def _is_authorized(self) -> bool:
+        if not self.auth_password:
+            return True
+
+        expected_username = self.auth_username or "admin"
+        auth = self.headers.get("Authorization", "")
+        if not auth.startswith("Basic "):
+            return False
+
+        try:
+            decoded = base64.b64decode(auth[6:], validate=True).decode("utf-8")
+        except Exception:
+            return False
+
+        username, separator, password = decoded.partition(":")
+        if not separator:
+            return False
+        return hmac.compare_digest(username, expected_username) and hmac.compare_digest(password, self.auth_password)
+
+    def _request_auth(self) -> None:
+        self.send_response(HTTPStatus.UNAUTHORIZED)
+        self.send_header("WWW-Authenticate", 'Basic realm="imap-webhook config", charset="UTF-8"')
+        self.send_header("Content-Type", "text/plain; charset=utf-8")
+        self.end_headers()
+        self.wfile.write(b"Authentication required.\n")
 
     def _read_json(self) -> dict[str, Any]:
         length = int(self.headers.get("Content-Length", "0"))
