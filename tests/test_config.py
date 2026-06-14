@@ -1,6 +1,7 @@
 import json
 import tempfile
 import unittest
+from datetime import datetime
 from pathlib import Path
 
 from imap_gotify.config import load_config
@@ -31,7 +32,10 @@ class ConfigTest(unittest.TestCase):
             config = load_config(path)
 
         self.assertIsNotNone(config.mailboxes[0].ignore_before)
-        self.assertEqual(config.mailboxes[0].ignore_before.isoformat(), "2026-06-13T00:00:00+08:00")
+        self.assertEqual(
+            config.mailboxes[0].ignore_before,
+            datetime.fromisoformat("2026-06-13T00:00:00+08:00"),
+        )
 
 
 if __name__ == "__main__":
