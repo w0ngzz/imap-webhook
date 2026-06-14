@@ -1,4 +1,4 @@
-# imap-gotify
+# imap-webhook
 
 实时监控多个 IMAP 邮箱，收到新邮件后转换成 Markdown，并推送到 Gotify。
 
@@ -104,10 +104,20 @@ services:
     image: w0ng22/imap-webhook:latest
     container_name: imap-webhook
     restart: unless-stopped
+    environment:
+      IMAP_WEBHOOK_WEB_USERNAME: ${IMAP_WEBHOOK_WEB_USERNAME:-admin}
+      IMAP_WEBHOOK_WEB_PASSWORD: ${IMAP_WEBHOOK_WEB_PASSWORD:?set IMAP_WEBHOOK_WEB_PASSWORD in .env}
     ports:
       - "127.0.0.1:8080:8080"
     volumes:
       - ./data:/data
+```
+
+Create `.env`:
+
+```bash
+IMAP_WEBHOOK_WEB_USERNAME=admin
+IMAP_WEBHOOK_WEB_PASSWORD=replace-with-a-long-random-password
 ```
 
 Start it:
@@ -149,13 +159,13 @@ Keep `data/` mounted when moving to a new server. It contains config, IMAP UID s
 Run the local configuration UI only:
 
 ```bash
-python -m imap_gotify --web --web-host 127.0.0.1 --web-port 8080 -c config.json
+python -m imap_gotify --web --web-host 127.0.0.1 --web-port 8080 --web-username admin --web-password "your-password" -c config.json
 ```
 
 Run the watcher and web UI in one process:
 
 ```bash
-python -m imap_gotify -c config.json --web-enable --web-host 127.0.0.1 --web-port 8080
+python -m imap_gotify -c config.json --web-enable --web-host 127.0.0.1 --web-port 8080 --web-username admin --web-password "your-password"
 ```
 
 ## Hot reload
