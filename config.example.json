@@ -1,0 +1,29 @@
+{
+  "database_path": "state/imap-gotify.sqlite3",
+  "log_path": "logs/imap-gotify.log",
+  "gotify": {
+    "url": "https://gotify.example.com",
+    "token": "YOUR_GOTIFY_APP_TOKEN",
+    "priority": 5,
+    "timeout_seconds": 15
+  },
+  "mailboxes": [
+    {
+      "name": "QQ",
+      "host": "imap.qq.com",
+      "port": 993,
+      "ssl": true,
+      "username": "user@qq.com",
+      "password": "imap-auth-code",
+      "folders": ["INBOX"],
+      "poll_seconds": 15,
+      "idle_seconds": 1740,
+      "initial_sync": "skip",
+      "ignore_before": "2026-06-13T00:00:00+08:00",
+      "priority": 5,
+      "max_body_chars": 4000,
+      "include_link_urls": true,
+      "include_remote_images": false
+    }
+  ]
+}

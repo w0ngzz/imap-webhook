@@ -1,0 +1,12 @@
+services:
+  imap-gotify:
+    build: .
+    container_name: imap-gotify
+    restart: unless-stopped
+    command: ["python", "-m", "imap_gotify", "-c", "/app/config.json", "--web-enable", "--web-host", "0.0.0.0", "--web-port", "8080"]
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ./config.json:/app/config.json
+      - ./state:/app/state
+      - ./logs:/app/logs
