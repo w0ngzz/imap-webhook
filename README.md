@@ -88,42 +88,61 @@ Gotify 的应用 token 在 Gotify Web UI 的 `Apps` 页面创建。
 
 ## Docker deployment
 
-Build and run one container with Docker Compose:
+Run one container with Docker Compose:
 
 ```bash
-cp config.example.json config.json
-mkdir -p state logs
-docker compose up -d --build
+sudo mkdir -p /opt/imap-webhook/data
+sudo chown -R $USER:$USER /opt/imap-webhook
+cd /opt/imap-webhook
 ```
 
-Useful commands:
+Create `docker-compose.yml`:
+
+```yaml
+services:
+  imap-webhook:
+    image: w0ng22/imap-webhook:latest
+    container_name: imap-webhook
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ./data:/data
+```
+
+Start it:
 
 ```bash
+docker compose up -d
 docker compose logs -f
-docker compose restart
-docker compose down
 ```
 
-Run one-off checks:
+On first start, the container creates:
 
-```bash
-docker compose run --rm imap-gotify python -m imap_gotify --check-config -c /app/config.json
-docker compose run --rm imap-gotify python -m imap_gotify --test-login -c /app/config.json
-docker compose run --rm imap-gotify python -m imap_gotify --list-folders -c /app/config.json
-docker compose run --rm imap-gotify python -m imap_gotify --test-webhook -c /app/config.json
+```text
+data/config.json
+data/state/
+data/logs/
 ```
 
-The same container runs both the IMAP watcher and the web configuration UI. The web UI binds to `127.0.0.1:8080` on the server by default.
-
-For a remote Linux server, use an SSH tunnel from your computer:
+Use an SSH tunnel from your computer:
 
 ```bash
 ssh -L 8080:127.0.0.1:8080 user@your-server
 ```
 
-Then open `http://127.0.0.1:8080` locally. The page can edit Gotify settings, IMAP mailboxes, save `config.json`, test IMAP login, list folders, and send a Gotify test message.
+Then open `http://127.0.0.1:8080` locally. Edit the generated config from the web UI and save it. The watcher will hot reload valid config changes.
 
-Keep `state/` mounted when moving to a new server. It stores IMAP UID state and prevents old messages from being sent again. Keep `logs/` mounted if you want persistent log files.
+Run one-off checks:
+
+```bash
+docker compose run --rm imap-webhook python -m imap_gotify --check-config -c /data/config.json
+docker compose run --rm imap-webhook python -m imap_gotify --test-login -c /data/config.json
+docker compose run --rm imap-webhook python -m imap_gotify --list-folders -c /data/config.json
+docker compose run --rm imap-webhook python -m imap_gotify --test-webhook -c /data/config.json
+```
+
+Keep `data/` mounted when moving to a new server. It contains config, IMAP UID state, and logs.
 
 ## Web configuration UI
 
